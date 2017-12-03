@@ -108,16 +108,18 @@ namespace Microsoft.Xna.Framework
                 return;
             }
 
-            for (int i = 0; i < this._keys.Count; i++)
+            //Get index of key with the closest position greater than or equal to the new key's position
+            int index = _keys.BinarySearch(item, _keyPositionComparer);
+            if (index < 0)
+                index = ~index;
+            else
             {
-                if (item.Position < this._keys[i].Position)
-                {
-                    this._keys.Insert(i, item);
-                    return;
-                }
+                //Position already exists, insert after the last matching key
+                while (index + 1 < _keys.Count && _keys[index + 1].Position == item.Position)
+                    index++;
+                index++;
             }
-
-            this._keys.Add(item);
+            this._keys.Insert(index, item);
         }
 
         /// <summary>

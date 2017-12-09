@@ -108,7 +108,7 @@ namespace Microsoft.Xna.Framework
             }
 
             //Get index of key with the closest position greater than or equal to the new key's position
-            int index = _keys.BinarySearch(item, _keyPositionComparer);
+            int index = _keys.BinarySearch(item);
             if (index < 0)
                 index = ~index;
             else

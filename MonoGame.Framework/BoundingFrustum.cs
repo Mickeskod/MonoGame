@@ -337,6 +337,15 @@ namespace Microsoft.Xna.Framework
         }
 
         /// <summary>
+        /// Returns a copy of internal planes array.
+        /// </summary>
+        /// <returns>The array of planes.</returns>
+        public Plane[] GetPlanes()
+        {
+            return (Plane[])this._planes.Clone();
+        }
+
+        /// <summary>
         /// Returns a copy of internal corners array.
         /// </summary>
         /// <param name="corners">The array which values will be replaced to corner values of this instance. It must have size of <see cref="BoundingFrustum.CornerCount"/>.</param>

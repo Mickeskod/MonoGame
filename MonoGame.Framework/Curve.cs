@@ -95,12 +95,15 @@ namespace Microsoft.Xna.Framework
         }
 
         /// <summary>
-        /// Evaluate the value at a position of this <see cref="Curve"/>.
+        /// Evaluate the value at a position of this <see cref="Curve"/> with a specified interplolation function.
         /// </summary>
         /// <param name="position">The position on this <see cref="Curve"/>.</param>
+        /// <param name="interpolant">The function to evaluate. </param>
         /// <returns>Value at the position on this <see cref="Curve"/>.</returns>
-        public float Evaluate(float position)
+        public float Evaluate(float position, Func<float, CurveKey, CurveKey, float> interpolant = null)
         {
+            if (interpolant == null)
+                interpolant = DefaultInterpolant;
             if (_keys.Count == 0)
             {
             	return 0f;
@@ -130,13 +133,13 @@ namespace Microsoft.Xna.Framework
                         //start -> end / start -> end
                         int cycle = GetNumberOfCycle(position);
                         float virtualPos = position - (cycle * (last.Position - first.Position));
-                        return GetCurvePosition(virtualPos);
+                        return Evaluate2(virtualPos, interpolant);
 
                     case CurveLoopType.CycleOffset:
                         //make the curve continue (with no step) so must up the curve each cycle of delta(value)
                         cycle = GetNumberOfCycle(position);
                         virtualPos = position - (cycle * (last.Position - first.Position));
-                        return (GetCurvePosition(virtualPos) + cycle * (last.Value - first.Value));
+                        return (Evaluate2(virtualPos, interpolant) + cycle * (last.Value - first.Value));
 
                     case CurveLoopType.Oscillate:
                         //go back on curve from end and target start 
@@ -146,7 +149,7 @@ namespace Microsoft.Xna.Framework
                             virtualPos = position - (cycle * (last.Position - first.Position));
                         else
                             virtualPos = last.Position - position + first.Position + (cycle * (last.Position - first.Position));
-                        return GetCurvePosition(virtualPos);
+                        return Evaluate2(virtualPos, interpolant);
                 }
             }
             else if (position > last.Position)
@@ -166,13 +169,13 @@ namespace Microsoft.Xna.Framework
                         //start -> end / start -> end
                         cycle = GetNumberOfCycle(position);
                         float virtualPos = position - (cycle * (last.Position - first.Position));
-                        return GetCurvePosition(virtualPos);
+                        return Evaluate2(virtualPos, interpolant);
 
                     case CurveLoopType.CycleOffset:
                         //make the curve continue (with no step) so must up the curve each cycle of delta(value)
                         cycle = GetNumberOfCycle(position);
                         virtualPos = position - (cycle * (last.Position - first.Position));
-                        return (GetCurvePosition(virtualPos) + cycle * (last.Value - first.Value));
+                        return (Evaluate2(virtualPos, interpolant) + cycle * (last.Value - first.Value));
 
                     case CurveLoopType.Oscillate:
                         //go back on curve from end and target start 
@@ -183,19 +186,19 @@ namespace Microsoft.Xna.Framework
                             virtualPos = position - (cycle * (last.Position - first.Position));
                         else
                             virtualPos = last.Position - position + first.Position + (cycle * (last.Position - first.Position));
-                        return GetCurvePosition(virtualPos);
+                        return Evaluate2(virtualPos, interpolant);
                 }
             }
 
             //in curve
-            return GetCurvePosition(position);
+            return Evaluate2(position, interpolant);
         }
 
         /// <summary>
         /// Computes tangents for all keys in the collection.
         /// </summary>
         /// <param name="tangentType">The tangent type for both in and out.</param>
-		public void ComputeTangents (CurveTangent tangentType)
+        public void ComputeTangents (CurveTangent tangentType)
 		{
 		    ComputeTangents(tangentType, tangentType);
 		}
@@ -288,7 +291,59 @@ namespace Microsoft.Xna.Framework
             }
         }
 
-	    #endregion
+        public float EvaluateCurvature(float position)
+        {
+            return Math.Abs(EvaluateSignedCurvature(position));
+        }
+
+        public float EvaluateSignedCurvature(float position)
+        {
+            float dy = Evaluate(position, DefaultInterpolantDerivative);
+            float ddy = Evaluate(position, DefaultInterpolantDerivative2);
+            return ddy / (float)Math.Pow(1 + dy * dy, 3 / 2f);
+        }
+
+        public float EvaluateSignedCurvatureDerivative(float position)
+        {
+            float dy = Evaluate(position, DefaultInterpolantDerivative);
+            float ddy = Evaluate(position, DefaultInterpolantDerivative2);
+            return ddy / (float)Math.Pow(1 + dy * dy, 3 / 2f);
+        }
+
+        public float ComputeLocalMaxCurvaturePosition(int keyIndex)
+        {
+            CurveKey key1 = _keys[keyIndex];
+            CurveKey key2 = _keys[keyIndex + 1];
+            float num = (3 * key1.Value + 2 * key1.TangentOut - 3 * key2.Value + key2.TangentIn);
+            float denom = 3 * (2 * key1.Value + key1.TangentOut - 2 * key2.Value + key2.TangentIn);
+            if (denom == 0)
+                return key2.Position;
+            float interpolant = num / denom;
+            return key1.Position + (key2.Position - key1.Position) * interpolant;
+        }
+
+        public float ComputeMaxCurvature(int keyIndex)
+        {
+            float left = EvaluateCurvature(Keys[keyIndex].Position);
+            if (keyIndex >= _keys.Count - 1)
+                return left;
+            float localMaxPos = ComputeLocalMaxCurvaturePosition(keyIndex);
+            float localMax = EvaluateCurvature(localMaxPos);
+            float right = EvaluateCurvature(Keys[keyIndex+1].Position);
+            float max = Math.Max(localMax, left);
+            max = Math.Max(max, right);
+            return max;
+        }
+
+        public Vector2 EvaluateNormal(float position)
+        {
+            float dy = Evaluate(position, DefaultInterpolantDerivative);
+            Vector2 normal = new Vector2(1, dy);
+            normal.Normalize();
+            return normal;
+        }
+
+        #endregion
 
         #region Private Methods
 
@@ -300,7 +355,7 @@ namespace Microsoft.Xna.Framework
             return (int)cycle;
         }
 
-        private float GetCurvePosition(float position)
+        private float Evaluate2(float position, Func<float, CurveKey, CurveKey, float> interpolant)
         {
             //only for position in curve
             int nextIndex = Math.Max(this._keys.IndexAtPosition(position), 1);
@@ -315,14 +370,50 @@ namespace Microsoft.Xna.Framework
                 return prev.Value;
             }
             float t = (position - prev.Position) / (next.Position - prev.Position);//to have t in [0,1]
-            float ts = t * t;
-            float tss = ts * t;
+            
+            return interpolant(t, prev, next);
+        }
+
+        public float DefaultInterpolant(float t, CurveKey prev, CurveKey next)
+        {
             //After a lot of search on internet I have found all about spline function
             // and bezier (phi'sss ancien) but finaly use hermite curve 
             //http://en.wikipedia.org/wiki/Cubic_Hermite_spline
             //P(t) = (2*t^3 - 3t^2 + 1)*P0 + (t^3 - 2t^2 + t)m0 + (-2t^3 + 3t^2)P1 + (t^3-t^2)m1
             //with P0.value = prev.value , m0 = prev.tangentOut, P1= next.value, m1 = next.TangentIn
+            float ts = t * t;
+            float tss = ts * t;
             return (2 * tss - 3 * ts + 1f) * prev.Value + (tss - 2 * ts + t) * prev.TangentOut + (3 * ts - 2 * tss) * next.Value + (tss - ts) * next.TangentIn;
+        }
+
+        static public float DefaultInterpolantDerivative(float t, CurveKey prev, CurveKey next)
+        {
+            float ts = t * t;
+            return (6 * ts - 6 * t) * prev.Value + (3 * ts - 4 * t + 1) * prev.TangentOut + (6 * t - 6 * ts) * next.Value + (3 * ts - 2 * t) * next.TangentIn;
+        }
+
+        static public float DefaultInterpolantDerivative2(float t, CurveKey prev, CurveKey next)
+        {
+            return (12 * t - 6) * prev.Value + (6 * t - 4) * prev.TangentOut + (6 - 12 * t) * next.Value + (6 * t - 2) * next.TangentIn;
+        }
+
+        public void ComputeNextVectors()
+        {
+            Vector2 nextVec = new Vector2();
+            for (int i = 0; i < _keys.Count; i++)
+            {
+                if (i == _keys.Count - 1)
+                {
+                    nextVec.X = 1;
+                    nextVec.Y = 0;
+                }
+                else
+                {
+                    nextVec.X = _keys[i + 1].Position - _keys[i].Position;
+                    nextVec.Y = _keys[i + 1].Value - _keys[i].Value;
+                }
+                _keys[i].NextVector = nextVec;
+            }
         }
 
         #endregion

@@ -22,7 +22,8 @@ namespace Microsoft.Xna.Framework
         private float _tangentIn;
         private float _tangentOut;
         private float _value;
-
+        private Vector2 _nextVector;
+        
         #endregion
 
         #region Properties
@@ -74,6 +75,16 @@ namespace Microsoft.Xna.Framework
         {
             get { return this._value; }
             set { this._value = value; }
+        }
+
+        /// <summary>
+        /// Vector pointing to next key
+        /// </summary>
+        [DataMember]
+        public Vector2 NextVector
+        {
+            get { return this._nextVector; }
+            set { this._nextVector = value; }
         }
 
         #endregion

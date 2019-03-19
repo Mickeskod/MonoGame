@@ -369,7 +369,10 @@ namespace Microsoft.Xna.Framework
                 }
                 return prev.Value;
             }
-            float t = (position - prev.Position) / (next.Position - prev.Position);//to have t in [0,1]
+            float t = 0;
+            float length = next.Position - prev.Position;
+            if (length > 0)
+                t = (position - prev.Position) / (length);//t = position mapped to [0,1]
             
             return interpolant(t, prev, next);
         }

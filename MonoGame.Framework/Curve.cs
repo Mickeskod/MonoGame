@@ -94,6 +94,11 @@ namespace Microsoft.Xna.Framework
             return curve;
         }
 
+        public float Evaluate(float position)
+        {
+            return Evaluate(position, null);
+        }
+
         /// <summary>
         /// Evaluate the value at a position of this <see cref="Curve"/> with a specified interplolation function.
         /// </summary>

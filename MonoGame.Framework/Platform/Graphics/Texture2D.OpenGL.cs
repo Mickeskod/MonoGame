@@ -1,4 +1,4 @@
-// MonoGame - Copyright (C) The MonoGame Team
+// MonoGame - Copyright (C) MonoGame Foundation, Inc
 // This file is subject to the terms and conditions defined in
 // file 'LICENSE.txt', which is part of this source code package.
 
@@ -228,7 +228,7 @@ namespace Microsoft.Xna.Framework.Graphics
             Threading.EnsureUIThread();
 
 #if GLES
-            // TODO: check for for non renderable formats (formats that can't be attached to FBO)
+            // TODO: check for non renderable formats (formats that can't be attached to FBO)
 
             var framebufferId = 0;
             GL.GenFramebuffers(1, out framebufferId);
